@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Broadcast Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#111827;min-height:100vh}
+
+/* Top bar */
+.topbar{background:#fff;border-bottom:1px solid #e5e7eb;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-left h1{font-size:17px;font-weight:700;color:#111827}
+.topbar-left p{font-size:12px;color:#6b7280;margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+
+/* Upload button */
+.upload-btn{display:inline-flex;align-items:center;gap:6px;background:#1a56a0;color:#fff;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:background .15s}
+.upload-btn:hover{background:#15407a}
+input[type=file]{display:none}
+.demo-note{font-size:12px;color:#9ca3af;padding:6px 12px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb}
+
+/* Layout */
+.main{padding:24px 28px;max-width:1400px;margin:0 auto}
+
+/* Campaign filter tabs */
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:7px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;transition:all .15s}
+.tab.active{background:#1a56a0;border-color:#1a56a0;color:#fff}
+.tab:hover:not(.active){border-color:#1a56a0;color:#1a56a0}
+
+/* Metric cards */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.metric-card{background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e5e7eb;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.mc-sent::before{background:#1a56a0}
+.mc-delivered::before{background:#059669}
+.mc-read::before{background:#d97706}
+.mc-failed::before{background:#dc2626}
+.mc-replied::before{background:#7c3aed}
+.metric-card .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:8px}
+.metric-card .value{font-size:32px;font-weight:700;line-height:1;margin-bottom:4px}
+.mc-sent .value{color:#1a56a0}
+.mc-delivered .value{color:#059669}
+.mc-read .value{color:#d97706}
+.mc-failed .value{color:#dc2626}
+.mc-replied .value{color:#7c3aed}
+.metric-card .rate{font-size:12px;color:#6b7280}
+.metric-card .rate b{font-weight:600}
+
+/* Charts row */
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+.card{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:20px}
+.card h2{font-size:14px;font-weight:600;color:#374151;margin-bottom:16px}
+.chart-wrap{position:relative}
+
+/* Campaign cards */
+.campaign-section{margin-bottom:24px}
+.campaign-section h2{font-size:14px;font-weight:600;color:#374151;margin-bottom:12px}
+.campaign-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.camp-card{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:18px}
+.camp-name{font-size:14px;font-weight:700;color:#111827;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.camp-badge{font-size:11px;background:#eff6ff;color:#1a56a0;padding:3px 8px;border-radius:10px;font-weight:600}
+.stat-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
+.stat-label{width:72px;color:#6b7280;font-size:12px}
+.bar-track{flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.stat-num{width:36px;text-align:right;font-weight:600;font-size:12px;color:#374151}
+
+/* Table */
+.table-section{background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px}
+.table-header{padding:16px 20px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.table-header h2{font-size:14px;font-weight:600;color:#374151;margin-right:auto}
+select{font-size:13px;padding:6px 10px;border-radius:7px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer}
+.search-box{font-size:13px;padding:6px 12px;border-radius:7px;border:1px solid #e5e7eb;background:#fff;color:#374151;width:200px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:800px}
+th{text-align:left;padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#9ca3af;background:#fafafa}
+td{padding:10px 14px;border-bottom:1px solid #f9fafb;color:#374151;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;gap:3px}
+.b-yes{background:#dcfce7;color:#166534}
+.b-no{background:#f9fafb;color:#9ca3af}
+.b-fail{background:#fee2e2;color:#991b1b}
+.b-camp{background:#eff6ff;color:#1a56a0}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 20px;color:#9ca3af}
+.empty .icon{font-size:40px;margin-bottom:12px;opacity:.5}
+.empty p{font-size:14px}
+
+/* Progress bar for funnel */
+.funnel-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.funnel-label{width:70px;font-size:12px;color:#6b7280;text-align:right}
+.funnel-track{flex:1;height:28px;background:#f3f4f6;border-radius:6px;overflow:hidden}
+.funnel-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;font-size:12px;font-weight:600;color:#fff;transition:width .8s cubic-bezier(.4,0,.2,1);min-width:0}
+.funnel-num{width:50px;text-align:right;font-size:13px;font-weight:700;color:#374151}
+.funnel-pct{width:40px;font-size:11px;color:#9ca3af;text-align:right}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>WhatsApp Broadcast Dashboard</h1>
+    <p>Live tracking: sent · delivered · read · failed · replied</p>
+  </div>
+  <div class="topbar-right">
+    <span class="demo-note" id="data-note">Showing demo data</span>
+    <label>
+      <div class="upload-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload CSV
+      </div>
+      <input type="file" id="csvUpload" accept=".csv">
+    </label>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Campaign filter tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-camp="">All campaigns</div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric-card mc-sent"><div class="label">Total Sent</div><div class="value" id="m-sent">0</div><div class="rate" id="r-sent">of all contacts</div></div>
+    <div class="metric-card mc-delivered"><div class="label">Delivered</div><div class="value" id="m-delivered">0</div><div class="rate" id="r-delivered">0% of sent</div></div>
+    <div class="metric-card mc-read"><div class="label">Read</div><div class="value" id="m-read">0</div><div class="rate" id="r-read">0% of sent</div></div>
+    <div class="metric-card mc-failed"><div class="label">Failed</div><div class="value" id="m-failed">0</div><div class="rate" id="r-failed">0% of sent</div></div>
+    <div class="metric-card mc-replied"><div class="label">Replied</div><div class="value" id="m-replied">0</div><div class="rate" id="r-replied">0% of sent</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="card" style="grid-column:span 2">
+      <h2>Delivery funnel</h2>
+      <div id="funnel-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Status breakdown</h2>
+      <div class="chart-wrap" style="height:220px"><canvas id="pieChart"></canvas></div>
+      <div id="pie-legend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#6b7280"></div>
+    </div>
+  </div>
+
+  <!-- Campaign breakdown -->
+  <div class="campaign-section">
+    <h2>Campaign breakdown</h2>
+    <div class="campaign-grid" id="campaign-grid">
+      <div class="empty"><div class="icon">📊</div><p>Upload CSV to see campaign stats</p></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-section">
+    <div class="table-header">
+      <h2>Contact list</h2>
+      <input class="search-box" type="text" placeholder="Search name or phone..." id="search-box" oninput="renderTable()">
+      <select id="filter-status" onchange="renderTable()">
+        <option value="">All statuses</option>
+        <option value="sent">Sent</option>
+        <option value="delivered">Delivered</option>
+        <option value="read">Read</option>
+        <option value="failed">Failed</option>
+        <option value="replied">Replied</option>
+      </select>
+      <span style="font-size:12px;color:#9ca3af" id="row-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Phone</th><th>Campaign</th>
+            <th>Sent</th><th>Delivered</th><th>Read</th><th>Failed</th><th>Replied</th>
+            <th>Reply</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:40px">Upload your Google Sheet CSV to view data</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let allData = [], activeCamp = '', pieChart;
+
+const DEMO = [
+  {name:'Rahul Sharma',phone:'919876543210',campaign:'old_leads',message_id:'wamid.abc1',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'YES',reply_text:'Interested, price bhejo'},
+  {name:'Amit Verma',phone:'919765432109',campaign:'dealers',message_id:'wamid.abc2',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'',reply_text:''},
+  {name:'Priya Singh',phone:'919654321098',campaign:'plumbers',message_id:'wamid.abc3',sent:'YES',delivered:'YES',read:'',failed:'',replied:'',reply_text:''},
+  {name:'Suresh Kumar',phone:'919543210987',campaign:'old_leads',message_id:'wamid.abc4',sent:'YES',delivered:'',read:'',failed:'YES',replied:'',reply_text:''},
+  {name:'Deepak Gupta',phone:'919432109876',campaign:'dealers',message_id:'wamid.abc5',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'YES',reply_text:'Rate list bhejo'},
+  {name:'Neha Patel',phone:'919321098765',campaign:'plumbers',message_id:'wamid.abc6',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'',reply_text:''},
+  {name:'Vijay Nair',phone:'919210987654',campaign:'old_leads',message_id:'wamid.abc7',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'YES',reply_text:'YES interested'},
+  {name:'Kavita Joshi',phone:'919109876543',campaign:'dealers',message_id:'wamid.abc8',sent:'YES',delivered:'',read:'',failed:'YES',replied:'',reply_text:''},
+  {name:'Rajan Mehta',phone:'919098765432',campaign:'plumbers',message_id:'wamid.abc9',sent:'YES',delivered:'YES',read:'',failed:'',replied:'',reply_text:''},
+  {name:'Suman Rao',phone:'918987654321',campaign:'old_leads',message_id:'wamid.abc10',sent:'YES',delivered:'YES',read:'YES',failed:'',replied:'',reply_text:''},
+];
+
+function parseCSV(txt) {
+  const lines = txt.trim().split('\n');
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line => {
+    const vals = line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={};
+    headers.forEach((h,i)=>{ obj[h]=vals[i]||''; });
+    return obj;
+  });
+}
+
+function pct(a,b){ return b?Math.round(a/b*100)+'%':'0%'; }
+function yes(r,k){ return (r[k]||'').toUpperCase()==='YES'; }
+
+function calcStats(data) {
+  const s={total:data.length,sent:0,delivered:0,read:0,failed:0,replied:0};
+  data.forEach(r=>{ if(yes(r,'sent'))s.sent++; if(yes(r,'delivered'))s.delivered++; if(yes(r,'read'))s.read++; if(yes(r,'failed'))s.failed++; if(yes(r,'replied'))s.replied++; });
+  return s;
+}
+
+function filtered(data) {
+  if(!activeCamp) return data;
+  return data.filter(r=>r.campaign===activeCamp);
+}
+
+function updateTabs(data) {
+  const camps=[...new Set(data.map(r=>r.campaign||'').filter(Boolean))].sort();
+  const el=document.getElementById('tabs');
+  el.innerHTML='<div class="tab'+(activeCamp?'':' active')+'" data-camp="">All campaigns</div>';
+  camps.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='tab'+(activeCamp===c?' active':'');
+    d.dataset.camp=c; d.textContent=c;
+    el.appendChild(d);
+  });
+  el.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    activeCamp=t.dataset.camp;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    render();
+  }));
+}
+
+function updateMetrics(s) {
+  document.getElementById('m-sent').textContent=s.sent;
+  document.getElementById('r-sent').textContent=s.total+' total contacts';
+  document.getElementById('m-delivered').textContent=s.delivered;
+  document.getElementById('r-delivered').textContent=pct(s.delivered,s.sent)+' of sent';
+  document.getElementById('m-read').textContent=s.read;
+  document.getElementById('r-read').textContent=pct(s.read,s.sent)+' of sent';
+  document.getElementById('m-failed').textContent=s.failed;
+  document.getElementById('r-failed').textContent=pct(s.failed,s.sent)+' of sent';
+  document.getElementById('m-replied').textContent=s.replied;
+  document.getElementById('r-replied').textContent=pct(s.replied,s.sent)+' of sent';
+}
+
+function updateFunnel(s) {
+  const items=[
+    {label:'Sent',val:s.sent,max:s.sent,color:'#1a56a0'},
+    {label:'Delivered',val:s.delivered,max:s.sent,color:'#059669'},
+    {label:'Read',val:s.read,max:s.sent,color:'#d97706'},
+    {label:'Replied',val:s.replied,max:s.sent,color:'#7c3aed'},
+    {label:'Failed',val:s.failed,max:s.sent,color:'#dc2626'},
+  ];
+  const el=document.getElementById('funnel-chart');
+  el.innerHTML=items.map(({label,val,max,color})=>{
+    const w=max?Math.round(val/max*100):0;
+    return `<div class="funnel-row">
+      <div class="funnel-label">${label}</div>
+      <div class="funnel-track"><div class="funnel-fill" style="width:${w}%;background:${color}">${w>8?w+'%':''}</div></div>
+      <div class="funnel-num">${val}</div>
+      <div class="funnel-pct">${pct(val,max)}</div>
+    </div>`;
+  }).join('');
+}
+
+function updatePie(s) {
+  if(pieChart) pieChart.destroy();
+  const deliveredOnly=Math.max(0,s.delivered-s.read);
+  const pending=Math.max(0,s.sent-s.delivered-s.failed);
+  const data=[deliveredOnly,s.read,s.failed,pending];
+  const labels=['Delivered only','Read','Failed','Pending'];
+  const colors=['#93c5fd','#d97706','#dc2626','#d1d5db'];
+
+  pieChart=new Chart(document.getElementById('pieChart').getContext('2d'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+c.label+': '+c.raw+' ('+pct(c.raw,s.sent)+')'}}}}}
+  });
+
+  document.getElementById('pie-legend').innerHTML=labels.map((l,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};display:inline-block"></span>${l}
+      </span>
+      <span style="font-weight:600;color:#374151">${data[i]} <span style="font-weight:400;color:#9ca3af">(${pct(data[i],s.sent)})</span></span>
+    </div>`).join('');
+}
+
+function updateCampaigns(data) {
+  const camps={};
+  data.forEach(r=>{
+    const c=r.campaign||'Unknown';
+    if(!camps[c]) camps[c]={total:0,sent:0,delivered:0,read:0,failed:0,replied:0};
+    camps[c].total++;
+    if(yes(r,'sent'))camps[c].sent++;
+    if(yes(r,'delivered'))camps[c].delivered++;
+    if(yes(r,'read'))camps[c].read++;
+    if(yes(r,'failed'))camps[c].failed++;
+    if(yes(r,'replied'))camps[c].replied++;
+  });
+
+  const grid=document.getElementById('campaign-grid');
+  const entries=Object.entries(camps);
+  if(!entries.length){grid.innerHTML='<div class="empty"><div class="icon">📊</div><p>No campaign data</p></div>';return;}
+
+  grid.innerHTML=entries.map(([name,s])=>{
+    const bar=(val,tot,color)=>{
+      const w=tot?Math.round(val/tot*100):0;
+      return `<div class="stat-row">
+        <div class="stat-label">${val} / ${tot}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color}"></div></div>
+        <div class="stat-num">${w}%</div>
+      </div>`;
+    };
+    return `<div class="camp-card">
+      <div class="camp-name">${name}<span class="camp-badge">${s.total} contacts</span></div>
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:8px;font-weight:600">DELIVERED &nbsp; READ &nbsp; REPLIED &nbsp; FAILED</div>
+      ${bar(s.delivered,s.sent,'#059669')}
+      ${bar(s.read,s.sent,'#d97706')}
+      ${bar(s.replied,s.sent,'#7c3aed')}
+      ${bar(s.failed,s.sent,'#dc2626')}
+    </div>`;
+  }).join('');
+}
+
+function renderTable() {
+  const campData=filtered(allData);
+  const search=(document.getElementById('search-box').value||'').toLowerCase();
+  const statusFilter=document.getElementById('filter-status').value;
+
+  let data=campData;
+  if(search) data=data.filter(r=>(r.name||'').toLowerCase().includes(search)||(r.phone||'').includes(search));
+  if(statusFilter) data=data.filter(r=>yes(r,statusFilter));
+
+  document.getElementById('row-count').textContent=data.length+' records';
+  const tbody=document.getElementById('table-body');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:30px">No records match your filter</td></tr>';return;}
+
+  tbody.innerHTML=data.map(r=>`<tr>
+    <td><span style="font-weight:500">${r.name||'-'}</span></td>
+    <td style="font-family:monospace;font-size:12px;color:#6b7280">${r.phone||'-'}</td>
+    <td><span class="badge b-camp">${r.campaign||'-'}</span></td>
+    <td>${badge(r.sent)}</td>
+    <td>${badge(r.delivered)}</td>
+    <td>${badge(r.read)}</td>
+    <td>${r.failed&&r.failed.toUpperCase()==='YES'?'<span class="badge b-fail">FAIL</span>':'<span class="badge b-no">—</span>'}</td>
+    <td>${badge(r.replied)}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4b5563;font-size:12px">${r.reply_text||'—'}</td>
+  </tr>`).join('');
+}
+
+function badge(v){ return (v||'').toUpperCase()==='YES'?'<span class="badge b-yes">YES</span>':'<span class="badge b-no">—</span>'; }
+
+function render() {
+  const data=filtered(allData);
+  const s=calcStats(data);
+  updateMetrics(s);
+  updateFunnel(s);
+  updatePie(s);
+  updateCampaigns(allData);
+  renderTable();
+}
+
+function loadData(data, label) {
+  allData=data;
+  activeCamp='';
+  document.getElementById('data-note').textContent=label||('Loaded '+data.length+' contacts');
+  updateTabs(data);
+  render();
+}
+
+document.getElementById('csvUpload').addEventListener('change',function(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{ const d=parseCSV(ev.target.result); loadData(d,'Loaded: '+f.name+' ('+d.length+' rows)'); };
+  r.readAsText(f);
+});
+
+loadData(DEMO,'Showing demo data — upload your CSV to see real tracking');
+</script>
+</body>
+</html>
